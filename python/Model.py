@@ -27,13 +27,22 @@ class Sigmoid(Activate):
 
     def __call__(self, x):
         sx = scipy.special.expit(x)
-        self.t = sx
         return sx
     
+
     def d(self, x):
-        sx = self.t
+        sx = scipy.special.expit(x)
         return sx * (1 - sx)
 
+
+class Relu(Activate):
+
+    def __call__(self, x):
+        return np.maximum(0, x)
+    
+
+    def d(self, x):
+        return x > 0
 
 
 class Layer:
@@ -59,12 +68,14 @@ class Layer:
 
 class Linear(Layer):
 
-    def __init__(self, input, output, lr, activate = None):
+    def __init__(self, input, output, lr_w, lr_b, activate = None):
         # (o*n) = (o*i) * (i*n) + (o*n)
-        self.w = np.random.normal(0.0, pow(output, -0.5), (output, input))
-        self.b = np.random.normal(0.0, pow(output, -0.5), (output, 1))
+        bound = pow(output, -0.5)
+        self.w = np.random.normal(0.0, bound, (output, input))
+        self.b = np.random.uniform(-bound, bound, (output, 1))
         self.a:Activate = activate
-        self.lr = lr
+        self.lr_w = lr_w
+        self.lr_b = lr_b
         self.prev:Layer = None
         self.next:Layer = None
     
@@ -101,8 +112,8 @@ class Linear(Layer):
             dydb = 1
         # e = y_ - y
         # w += lr * e * dy/dw
-        self.w += self.lr * e * dydw
-        self.b += self.lr * 0.001 * e * dydb
+        self.w += self.lr_w * e * dydw
+        self.b += self.lr_b * e * dydb
 
 
 def Train(l:Layer, xs, ys_):
@@ -120,6 +131,8 @@ def Train(l:Layer, xs, ys_):
         e = pe
         pe = l.backward(e)
         l.train(e)
+    
+    return np.sum(e)
 
 
 def Predict(l:Layer, xs):
